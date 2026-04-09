@@ -8,7 +8,7 @@ st.set_page_config(page_title="Supply Chain Risk Dashboard", layout="wide")
 @st.cache_data
 def load_data():
     # Use your exact filename
-    df = pd.read_csv("supply_chain_risk_dataset.csv")
+    df = pd.read_csv("data.csv")
     return df
 
 try:

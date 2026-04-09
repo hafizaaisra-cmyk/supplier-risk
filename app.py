@@ -29,8 +29,7 @@ try:
 
     # 3. RISK CALCULATION LOGIC
     # Financial Risk
-    fin_map = {'A': 10, 'B': 40, 'C': 80}
-    fin_risk = fin_map.get(s_data['Financial_Rating'], 50)
+    fin_risk = 30
 
     # Operational & Delivery
     op_risk = 100 - s_data['Quality_Score']

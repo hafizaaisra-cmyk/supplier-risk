@@ -101,3 +101,25 @@ try:
 
 except Exception as e:
     st.error(f"Error loading dashboard. Make sure your CSV columns match the logic. Details: {e}")
+    # --- 4. WRITTEN SUMMARY OF THE 8 RISKS ---
+    st.markdown("---")
+    st.subheader("📊 Detailed Risk Calculation Breakdown")
+    
+    # Create a nice layout with 4 columns to show the 8 risks as text cards
+    row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
+    row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
+    
+    # Row 1
+    row1_col1.write(f"**Financial:** {fin_risk}%")
+    row1_col2.write(f"**Operational:** {op_risk}%")
+    row1_col3.write(f"**Delivery:** {del_risk}%")
+    row1_col4.write(f"**Geopolitical:** {geo_risk}%")
+    
+    # Row 2
+    row2_col1.write(f"**Compliance:** {comp_risk}%")
+    row2_col2.write(f"**Price:** {price_risk}%")
+    row2_col3.write(f"**Environmental:** {env_risk}%")
+    row2_col4.write(f"**Cyber:** {cyber_risk}%")
+
+    # Add a final written conclusion
+    st.info(f"**System Prediction:** Based on the {selected_supplier} data, the most critical area to address is **{risk_df.loc[risk_df['Score'].idxmax(), 'Category']} Risk**.")

@@ -26,10 +26,14 @@ try:
     st.title("🛡️ Supplier Risk Scoring & Prediction")
     st.sidebar.header("Control Panel")
     
-    # Specifically looks for the column named 'Supplier_Name'
-supplier_list = df['supplier_id'].unique()
-selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
-s_data = df[df['supplier_id'] == selected_supplier].iloc[0]
+    # INDENTED PROPERLY: These lines are now inside the 'try' block
+    supplier_list = df['supplier_id'].unique()
+    selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
+    s_data = df[df['supplier_id'] == selected_supplier].iloc[0]
+
+# You MUST have this part at the bottom to close the 'try' block
+except Exception as e:
+    st.error(f"Something went wrong: {e}")
 
     # --- 2. THE 8 RISK CALCULATION LOGIC (Rule-Based) ---
     # These rules use the data from your CSV to 'predict' risk levels

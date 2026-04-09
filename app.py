@@ -1,16 +1,14 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 # 1. SETUP & DATA LOADING
-st.set_page_config(page_title="Supplier Risk Dashboard", layout="wide")
+st.set_page_config(page_title="Supply Chain Risk Dashboard", layout="wide")
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("data.csv")
-    # Clean up column names just in case
-    df.columns = df.columns.str.strip()
+    # Use your exact filename
+    df = pd.read_csv("supply_chain_risk_dataset.csv")
     return df
 
 try:
@@ -20,56 +18,54 @@ try:
     # 2. SIDEBAR - SUPPLIER SELECTION
     st.sidebar.header("Control Panel")
     
-    # Using 'supplier_id' based on your CSV
+    # Using 'supplier_id' from your file
     supplier_list = df['supplier_id'].unique()
-    selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
+    selected_supplier = st.sidebar.selectbox("Select Supplier ID", supplier_list)
 
     # Filter data for selected supplier
     s_data = df[df['supplier_id'] == selected_supplier].iloc[0]
 
-    # 3. RISK CALCULATION LOGIC
-    # Financial Risk
-    fin_risk = 30
+    # 3. RISK CALCULATION LOGIC (Using your actual columns)
+    # Mapping the 8 risks to your specific data columns
+    lead_risk = min(s_data['supplier_lead_time_days'] * 10, 100)
+    qual_risk = 100 - s_data['supplier_quality_score']
+    rel_risk  = (1 - s_data['supplier_reliability_index']) * 100
+    log_risk  = min(s_data['port_delay_days'] * 15, 100)
+    econ_risk = min(s_data['fuel_price_index'] * 40, 100)
+    dem_risk  = s_data['market_demand_index'] * 100
+    env_risk  = min(s_data['weather_disruption_score'] * 10, 100)
+    inv_risk  = min((s_data['pending_orders'] / 600) * 100, 100)
 
-    # Operational & Delivery
-    op_risk = 100 - s_data['Quality_Score']
-    del_risk = min(s_data['Lead_Time'] * 2, 100)
-
-    # Geopolitical & Compliance
-    geo_risk = 80 if s_data['Location'] == 'International' else 20
-    comp_risk = 10 if s_data['Compliance_Status'] == 'Certified' else 90
-
-    # Others
-    price_risk = 75 if s_data['Price_Volatility'] == 'High' else 25
-    env_risk = 30 # Baseline
-    cyber_risk = 45 # Baseline
-
-    total_risk = (fin_risk + op_risk + del_risk + geo_risk + comp_risk + price_risk + env_risk + cyber_risk) / 8
+    # Calculate Overall Risk (Average of the 8)
+    avg_risk = (lead_risk + qual_risk + rel_risk + log_risk + econ_risk + dem_risk + env_risk + inv_risk) / 8
+    
+    # Use your file's existing probability for the main gauge
+    final_prob = s_data['risk_probability'] * 100
 
     # 4. TOP METRICS
     col1, col2, col3 = st.columns(3)
-    col1.metric("Overall Risk Score", f"{total_risk:.1f}%")
+    col1.metric("Overall Risk Score", f"{final_prob:.1f}%")
     col2.metric("Supplier ID", selected_supplier)
-    col3.metric("Data Reliability", "High (64-bit)")
+    col3.metric("Risk Label", s_data['risk_label'])
 
-    # 5. CHARTS SECTION
+    # 5. VISUALIZATIONS
     view_col1, view_col2 = st.columns(2)
 
     with view_col1:
-        st.subheader("Risk Distribution")
+        st.subheader("Risk Distribution (Radar Chart)")
         risk_df = pd.DataFrame({
-            'Category': ['Financial', 'Operational', 'Delivery', 'Geopolitical', 'Compliance', 'Price', 'Environmental', 'Cyber'],
-            'Score': [fin_risk, op_risk, del_risk, geo_risk, comp_risk, price_risk, env_risk, cyber_risk]
+            'Category': ['Lead Time', 'Quality', 'Reliability', 'Logistics', 'Economic', 'Demand', 'Environmental', 'Inventory'],
+            'Score': [lead_risk, qual_risk, rel_risk, log_risk, econ_risk, dem_risk, env_risk, inv_risk]
         })
         fig = px.line_polar(risk_df, r='Score', theta='Category', line_close=True)
         fig.update_traces(fill='toself', line_color='red')
         st.plotly_chart(fig, use_container_width=True)
 
     with view_col2:
-        st.subheader("Detailed Risk Metrics")
+        st.subheader("Detailed Risk Metrics (Bar Chart)")
         st.bar_chart(risk_df.set_index('Category'))
 
-    # 6. WRITTEN REPRESENTATION
+    # 6. WRITTEN REPRESENTATION (The table you wanted)
     st.divider()
     st.subheader("📋 Written Risk Assessment Summary")
     
@@ -77,12 +73,14 @@ try:
     display_df['Status'] = display_df['Score'].apply(lambda x: "🔴 High" if x > 60 else ("🟡 Medium" if x > 30 else "🟢 Low"))
     st.table(display_df)
 
-    # System Prediction Alert
-    if total_risk > 50:
-        st.warning(f"ACTION REQUIRED: Monitor {selected_supplier} closely due to high risk areas.")
+    # Final System Prediction based on your file's Label
+    if s_data['risk_label'] == 'High':
+        st.error(f"CRITICAL PREDICTION: {selected_supplier} is flagged as HIGH RISK. Immediate mitigation required.")
+    elif s_data['risk_label'] == 'Medium':
+        st.warning(f"CAUTION PREDICTION: {selected_supplier} is stable but shows vulnerability in {risk_df.loc[risk_df['Score'].idxmax(), 'Category']}.")
     else:
-        st.success(f"STABLE: {selected_supplier} meets baseline safety requirements.")
+        st.success(f"SAFE PREDICTION: {selected_supplier} is a reliable partner.")
 
 except Exception as e:
-    st.error(f"⚠️ System Error: {e}")
-    st.info("Check if your data.csv has the column 'supplier_id' and 'Financial_Rating'.")
+    st.error(f"⚠️ Column Error: {e}")
+    st.info("Ensure your file is named 'supply_chain_risk_dataset.csv' on GitHub.")

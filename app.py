@@ -26,12 +26,10 @@ try:
     st.title("🛡️ Supplier Risk Scoring & Prediction")
     st.sidebar.header("Control Panel")
     
-    # Select Supplier
-    supplier_list = df[df.columns[0]].unique()
-    selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
-    
-    # Filter data for selected supplier
-    s_data = df[df[df.columns[0]] == selected_supplier].iloc[0]
+    # Specifically looks for the column named 'Supplier_Name'
+supplier_list = df['Supplier_Name'].unique()
+selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
+s_data = df[df['Supplier_Name'] == selected_supplier].iloc[0]
 
     # --- 2. THE 8 RISK CALCULATION LOGIC (Rule-Based) ---
     # These rules use the data from your CSV to 'predict' risk levels

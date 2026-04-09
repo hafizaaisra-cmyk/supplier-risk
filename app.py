@@ -1,127 +1,89 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
-# --- CONFIGURATION ----
-st.set_page_config(page_title="Supplier Risk System", layout="wide")
+# 1. SETUP & DATA LOADING
+st.set_page_config(page_title="Supplier Risk Dashboard", layout="wide")
 
-# --- STYLING ---
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 1. LOAD DATA ---
 @st.cache_data
 def load_data():
-    # This automatically looks for your data.csv
     df = pd.read_csv("data.csv")
+    # Clean up column names just in case
+    df.columns = df.columns.str.strip()
     return df
 
 try:
     df = load_data()
-    
     st.title("🛡️ Supplier Risk Scoring & Prediction")
+    
+    # 2. SIDEBAR - SUPPLIER SELECTION
     st.sidebar.header("Control Panel")
     
-    # INDENTED PROPERLY: These lines are now inside the 'try' block
+    # Using 'supplier_id' based on your CSV
     supplier_list = df['supplier_id'].unique()
     selected_supplier = st.sidebar.selectbox("Select Supplier to Analyze", supplier_list)
+
+    # Filter data for selected supplier
     s_data = df[df['supplier_id'] == selected_supplier].iloc[0]
 
-# You MUST have this part at the bottom to close the 'try' block
-except Exception as e:
-    st.error(f"Something went wrong: {e}")
-
-    # --- 2. THE 8 RISK CALCULATION LOGIC (Rule-Based) ---
-    # These rules use the data from your CSV to 'predict' risk levels
-    
-    # Risk 1: Financial (Based on Rating)
+    # 3. RISK CALCULATION LOGIC
+    # Financial Risk
     fin_map = {'A': 10, 'B': 40, 'C': 80}
-    fin_risk = fin_map.get(str(s_data.get('Financial_Rating', 'B')), 50)
+    fin_risk = fin_map.get(s_data['Financial_Rating'], 50)
 
-    # Risk 2: Operational (Inverse of Quality)
-    op_risk = 100 - s_data.get('Quality_Score', 70)
+    # Operational & Delivery
+    op_risk = 100 - s_data['Quality_Score']
+    del_risk = min(s_data['Lead_Time'] * 2, 100)
 
-    # Risk 3: Delivery (Based on Lead Time)
-    del_risk = min(100, s_data.get('Lead_Time', 20) * 2)
+    # Geopolitical & Compliance
+    geo_risk = 80 if s_data['Location'] == 'International' else 20
+    comp_risk = 10 if s_data['Compliance_Status'] == 'Certified' else 90
 
-    # Risk 4: Geopolitical (Based on Location)
-    geo_risk = 80 if s_data.get('Location') == 'International' else 20
-
-    # Risk 5: Compliance
-    comp_risk = 10 if s_data.get('Compliance_Status') == 'Certified' else 90
-
-    # Risk 6: Price Risk
-    price_risk = 75 if s_data.get('Price_Volatility') == 'High' else 25
-
-    # Risk 7: Environmental (Custom Rule)
+    # Others
+    price_risk = 75 if s_data['Price_Volatility'] == 'High' else 25
     env_risk = 30 # Baseline
-
-    # Risk 8: Cyber Risk (Custom Rule)
     cyber_risk = 45 # Baseline
 
-    # Prepare Data for Charts
-    risk_scores = {
-        "Financial": fin_risk, "Operational": op_risk, "Delivery": del_risk,
-        "Geopolitical": geo_risk, "Compliance": comp_risk, "Price": price_risk,
-        "Environmental": env_risk, "Cyber": cyber_risk
-    }
-    
-    risk_df = pd.DataFrame(list(risk_scores.items()), columns=['Category', 'Score'])
-    avg_risk = risk_df['Score'].mean()
+    total_risk = (fin_risk + op_risk + del_risk + geo_risk + comp_risk + price_risk + env_risk + cyber_risk) / 8
 
-    # --- 3. DASHBOARD LAYOUT ---
+    # 4. TOP METRICS
     col1, col2, col3 = st.columns(3)
-    col1.metric("Overall Risk Score", f"{avg_risk:.1f}%", delta="-Low" if avg_risk < 50 else "High", delta_color="inverse")
-    col2.metric("Supplier Status", "Active")
+    col1.metric("Overall Risk Score", f"{total_risk:.1f}%")
+    col2.metric("Supplier ID", selected_supplier)
     col3.metric("Data Reliability", "High (64-bit)")
 
-    st.divider()
+    # 5. CHARTS SECTION
+    view_col1, view_col2 = st.columns(2)
 
-    left_col, right_col = st.columns([1, 1])
-
-    with left_col:
+    with view_col1:
         st.subheader("Risk Distribution")
-        fig_radar = px.line_polar(risk_df, r='Score', theta='Category', line_close=True, 
-                                 range_r=[0,100], color_discrete_sequence=['#ff4b4b'])
-        fig_radar.update_traces(fill='toself')
-        st.plotly_chart(fig_radar, use_container_width=True)
+        risk_df = pd.DataFrame({
+            'Category': ['Financial', 'Operational', 'Delivery', 'Geopolitical', 'Compliance', 'Price', 'Environmental', 'Cyber'],
+            'Score': [fin_risk, op_risk, del_risk, geo_risk, comp_risk, price_risk, env_risk, cyber_risk]
+        })
+        fig = px.line_polar(risk_df, r='Score', theta='Category', line_close=True)
+        fig.update_traces(fill='toself', line_color='red')
+        st.plotly_chart(fig, use_container_width=True)
 
-    with right_col:
+    with view_col2:
         st.subheader("Detailed Risk Metrics")
         st.bar_chart(risk_df.set_index('Category'))
-        
-        if avg_risk > 60:
-            st.error("⚠️ HIGH RISK DETECTED: Consider backup suppliers.")
-        elif avg_risk > 30:
-            st.warning("⚠️ MEDIUM RISK: Monitor delivery performance.")
-        else:
-            st.success("✅ LOW RISK: Reliable partner.")
+
+    # 6. WRITTEN REPRESENTATION
+    st.divider()
+    st.subheader("📋 Written Risk Assessment Summary")
+    
+    display_df = risk_df.copy()
+    display_df['Status'] = display_df['Score'].apply(lambda x: "🔴 High" if x > 60 else ("🟡 Medium" if x > 30 else "🟢 Low"))
+    st.table(display_df)
+
+    # System Prediction Alert
+    if total_risk > 50:
+        st.warning(f"ACTION REQUIRED: Monitor {selected_supplier} closely due to high risk areas.")
+    else:
+        st.success(f"STABLE: {selected_supplier} meets baseline safety requirements.")
 
 except Exception as e:
-    st.error(f"Error loading dashboard. Make sure your CSV columns match the logic. Details: {e}")
-    # --- 4. WRITTEN SUMMARY OF THE 8 RISKS ---
-    st.markdown("---")
-    st.subheader("📊 Detailed Risk Calculation Breakdown")
-    
-    # Create a nice layout with 4 columns to show the 8 risks as text cards
-    row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
-    row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
-    
-    # Row 1
-    row1_col1.write(f"**Financial:** {fin_risk}%")
-    row1_col2.write(f"**Operational:** {op_risk}%")
-    row1_col3.write(f"**Delivery:** {del_risk}%")
-    row1_col4.write(f"**Geopolitical:** {geo_risk}%")
-    
-    # Row 2
-    row2_col1.write(f"**Compliance:** {comp_risk}%")
-    row2_col2.write(f"**Price:** {price_risk}%")
-    row2_col3.write(f"**Environmental:** {env_risk}%")
-    row2_col4.write(f"**Cyber:** {cyber_risk}%")
-
-    # Add a final written conclusion
-    st.info(f"**System Prediction:** Based on the {selected_supplier} data, the most critical area to address is **{risk_df.loc[risk_df['Score'].idxmax(), 'Category']} Risk**.")
+    st.error(f"⚠️ System Error: {e}")
+    st.info("Check if your data.csv has the column 'supplier_id' and 'Financial_Rating'.")
